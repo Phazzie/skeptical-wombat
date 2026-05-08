@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: var(--font-anton);
+  --font-body: var(--font-inter);
+}
+
+/* ── Design tokens ── */
+:root {
+  --neon-accent: #E0FF00;  /* Electric lime */
+  --ink-black: #050505;
+  --paper-white: #FAFAFA;
+  --fuchsia-glow: rgba(217, 70, 239, 0.6);
+  --neon-glow: rgba(224, 255, 0, 0.4);
+}
+
+/* ── Base ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-body), sans-serif;
+  background-color: var(--paper-white);
+  color: var(--ink-black);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Custom scrollbar — dark surfaces ── */
+.custom-scrollbar,
+.overflow-y-auto {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(224, 255, 0, 0.25) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track,
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb,
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: rgba(224, 255, 0, 0.2);
+  border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(224, 255, 0, 0.4);
+}
+
+/* ── Shared button style ── */
+.action-btn {
+  background-color: var(--ink-black);
+  color: var(--paper-white);
+  border: 1px solid var(--ink-black);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.action-btn:hover {
+  background: var(--neon-accent);
+  color: var(--ink-black);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(224, 255, 0, 0.25);
+  border-color: var(--neon-accent);
+}
+
+.action-btn:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── Sharp-border inputs (light surfaces) ── */
+.sharp-border {
+  border: 1px solid var(--ink-black);
+  box-shadow: 4px 4px 0 0 rgba(5, 5, 5, 0.1);
+  transition: all 0.25s ease;
+}
+
+.sharp-border:focus-within,
+.sharp-border:hover {
+  box-shadow: 6px 6px 0 0 var(--neon-accent);
+}
+
+.input-label {
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+/* ── Neon glow utilities ── */
+.glow-neon {
+  box-shadow: 0 0 30px var(--neon-glow), 0 0 60px rgba(224, 255, 0, 0.1);
+}
+
+.glow-fuchsia {
+  box-shadow: 0 0 30px var(--fuchsia-glow), 0 0 60px rgba(217, 70, 239, 0.15);
+}
+
+.text-glow-neon {
+  text-shadow: 0 0 40px rgba(224, 255, 0, 0.5);
+}
+
+/* ── Animations ── */
+@keyframes wombat-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.8; transform: scale(1.03); }
+}
+
+@keyframes neon-flicker {
+  0%, 100% { opacity: 1; }
+  92%       { opacity: 1; }
+  93%       { opacity: 0.7; }
+  94%       { opacity: 1; }
+  97%       { opacity: 0.85; }
+  98%       { opacity: 1; }
+}
+
+@keyframes slide-up-fade {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-down-fade {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.animate-wombat-pulse  { animation: wombat-pulse 2.5s ease-in-out infinite; }
+.animate-neon-flicker  { animation: neon-flicker 5s ease-in-out infinite; }
+.animate-slide-up      { animation: slide-up-fade 0.4s ease both; }
+.animate-slide-down    { animation: slide-down-fade 0.25s ease both; }
+.animate-spin-slow     { animation: spin-slow 4s linear infinite; }
+
+/* ── Dark mode preference ── */
+@media (prefers-color-scheme: dark) {
+  html:not([data-force-light]) body {
+    background-color: var(--ink-black);
+    color: var(--paper-white);
+  }
+
+  html:not([data-force-light]) .sharp-border {
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 4px 4px 0 0 rgba(224, 255, 0, 0.1);
+  }
+
+  html:not([data-force-light]) .sharp-border:focus-within,
+  html:not([data-force-light]) .sharp-border:hover {
+    box-shadow: 6px 6px 0 0 var(--neon-accent);
+    border-color: var(--neon-accent);
+  }
+}
+
+/* ── Selection colour ── */
+::selection {
+  background-color: var(--neon-accent);
+  color: var(--ink-black);
+}
+
+::-moz-selection {
+  background-color: var(--neon-accent);
+  color: var(--ink-black);
+}
+
+/* ── Focus visible ── */
+:focus-visible {
+  outline: 2px solid var(--neon-accent);
+  outline-offset: 2px;
+}
