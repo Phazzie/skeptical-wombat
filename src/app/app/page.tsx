@@ -19,6 +19,10 @@ import { StructureEditor } from '../../components/StructureEditor';
 import { ChatInterface } from '../../components/ChatInterface';
 import { Chapter } from '../../domain/entities/Project';
 
+// Prevent Next.js from attempting static prerendering — this page requires
+// client-side auth (useUser calls suspendIfSsr which throws during SSR/build).
+export const dynamic = 'force-dynamic';
+
 type Gap = { id: string; description: string; isResolved: boolean };
 type Contradiction = { id: string; statementA: string; statementB: string; isResolved: boolean };
 type ProjectData = {
