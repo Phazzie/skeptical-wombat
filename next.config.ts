@@ -18,10 +18,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Treat @stackframe packages as external to avoid React 19 ESM bundling
-  // issues where 'useContext' is not found in the bundled react module.
+  // Only mark the low-level shared packages as external (not the main @stackframe/stack).
+  // Keeping @stackframe/stack bundled is required for RSC serialization to work correctly —
+  // when it's external, StackServerApp class instances can't be passed through RSC boundaries.
   serverExternalPackages: [
-    '@stackframe/stack',
     '@stackframe/stack-shared',
     '@stackframe/stack-sc',
   ],
