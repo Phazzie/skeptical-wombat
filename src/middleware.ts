@@ -1,10 +1,18 @@
-import { stackServerApp } from './stack';
+import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * Protect all app routes and API routes. The marketing landing page (/)
- * and auth routes (/sign-in, /sign-up) remain public.
+ * Route matcher for app and API routes.
+ *
+ * Auth protection is enforced at the route level:
+ *   - Client pages: useUser({ or: 'redirect' })  (src/app/app/page.tsx)
+ *   - API handlers: stackServerApp.getUser({ or: 'throw' }) (src/app/api/*)
+ *
+ * Stack Auth v2 removed the stackServerApp.middleware helper.
+ * Route-level guards are sufficient — this middleware just defines the matcher.
  */
-export const middleware = stackServerApp.middleware;
+export function middleware(_request: NextRequest): NextResponse {
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
