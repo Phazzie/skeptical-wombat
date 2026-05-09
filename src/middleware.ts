@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * Stack Auth v2 removed the stackServerApp.middleware helper.
  * Route-level guards are sufficient — this middleware just defines the matcher.
  */
-export function middleware(_request: NextRequest): NextResponse {
+export function middleware(_request: NextRequest) {
   return NextResponse.next();
 }
 

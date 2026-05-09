@@ -8,5 +8,5 @@ import { StackHandler } from '@stackframe/stack';
 import { stackServerApp } from '../../../stack';
 
 export default function StackHandlerPage(props: unknown) {
-  return <StackHandler app={stackServerApp} routeProps={props as object} fullPage />;
+  return <StackHandler app={stackServerApp} routeProps={props as object} />;
 }
