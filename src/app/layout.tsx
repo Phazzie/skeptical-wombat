@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import './globals.css';
 import { Inter, Anton } from 'next/font/google';
 import { StackProvider, StackTheme } from '@stackframe/stack';
@@ -28,15 +29,57 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Loading fallback for the root Suspense boundary.
+ *
+ * StackProvider / StackTheme are Stack Auth client components that call
+ * suspendIfSsr() during SSR. This fallback is shown on the server while
+ * the client takes over and renders the actual content.
+ */
+function RootLoadingFallback() {
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0a0a0a',
+      }}
+    >
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          border: '3px solid #333',
+          borderTopColor: '#6366f1',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+        }}
+      />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${anton.variable}`}>
       <body suppressHydrationWarning className="antialiased">
-        <StackProvider app={stackServerApp}>
-          <StackTheme>
-            {children}
-          </StackTheme>
-        </StackProvider>
+        {/*
+         * Suspense boundary guards against StackProvider / StackTheme calling
+         * suspendIfSsr() during SSR for dynamic routes (sign-in, sign-up, handler).
+         * Without this boundary the entire server render crashes with a 500.
+         * With it, the server sends the fallback spinner and the client picks up
+         * and renders the real Stack Auth components normally.
+         */}
+        <Suspense fallback={<RootLoadingFallback />}>
+          <StackProvider app={stackServerApp}>
+            <StackTheme>
+              {children}
+            </StackTheme>
+          </StackProvider>
+        </Suspense>
       </body>
     </html>
   );
