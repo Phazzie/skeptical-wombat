@@ -33,7 +33,7 @@ type Tab = 'DRAFT' | 'STRUCTURE' | 'CHAT';
 
 export default function AppPage() {
   // ── Auth — projectId === user.id (one project per user, IDOR-proof) ──
-  const { user } = useUser({ or: 'redirect' });
+  const user = useUser({ or: 'redirect' });
   const projectId = user?.id ?? null;
 
   // ── UI state ──
