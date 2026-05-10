@@ -15,8 +15,16 @@ export interface Chapter {
   beats: Beat[];
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+const MAX_CHAT_HISTORY = 50;
+
 export class Project {
   private _lastAnalyzedHash: string | null = null;
+  private _chatHistory: ChatMessage[] = [];
 
   private constructor(
     public readonly id: string,
@@ -33,6 +41,14 @@ export class Project {
 
   setLastAnalyzedHash(hash: string): void {
     this._lastAnalyzedHash = hash;
+  }
+
+  get chatHistory(): ChatMessage[] {
+    return this._chatHistory;
+  }
+
+  setChatHistory(history: ChatMessage[]): void {
+    this._chatHistory = history.slice(-MAX_CHAT_HISTORY);
   }
 
   static create(id: string): Project {
@@ -53,10 +69,12 @@ export class Project {
     contradictions: Contradiction[],
     score: number,
     chapters: Chapter[],
-    lastAnalyzedHash?: string | null
+    lastAnalyzedHash?: string | null,
+    chatHistory?: ChatMessage[] | null
   ): Project {
     const project = new Project(id, state, gaps, contradictions, SkepticismScore.from(score), chapters);
     project._lastAnalyzedHash = lastAnalyzedHash ?? null;
+    project._chatHistory = (chatHistory ?? []).slice(-MAX_CHAT_HISTORY);
     return project;
   }
 

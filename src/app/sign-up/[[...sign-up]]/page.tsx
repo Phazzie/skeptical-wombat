@@ -16,7 +16,7 @@ export default function SignUpPage() {
             Create your account
           </p>
         </div>
-        <SignUp />
+        <SignUp afterSignUp="/app" />
         <p className="text-center text-white/30 text-xs mt-6">
           Already have an account?{' '}
           <Link href="/sign-in" className="text-[var(--neon-accent)] hover:underline">

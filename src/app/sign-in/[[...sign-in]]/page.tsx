@@ -15,7 +15,7 @@ export default function SignInPage() {
             Sign in to continue
           </p>
         </div>
-        <SignIn />
+        <SignIn afterSignIn="/app" />
       </div>
     </main>
   );

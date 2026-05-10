@@ -99,6 +99,7 @@ function SortableChapter({
         isDragging ? 'opacity-60 shadow-[0_0_0_0_rgba(5,5,5,1)]' : ''
       }`}
     >
+      {/* Chapter header with drag handle */}
       <div className="flex items-center gap-3 border-b-2 border-fuchsia-200 pb-4 mb-2">
         <div
           {...attributes}
@@ -118,6 +119,7 @@ function SortableChapter({
         </span>
       </div>
 
+      {/* Beat list */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -179,6 +181,7 @@ export function StructureEditor({ chapters, onUpdate }: StructureEditorProps) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // Reorder chapters
   const handleChapterDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
@@ -238,13 +241,14 @@ export function StructureEditor({ chapters, onUpdate }: StructureEditorProps) {
 
   return (
     <div className="flex flex-col gap-10">
+      {/* Toolbar */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-display text-4xl uppercase tracking-tight text-fuchsia-900 border-b-4 border-fuchsia-500 inline-block pb-2">
             The Outline
           </h2>
           <p className="text-[10px] text-fuchsia-400 font-bold uppercase tracking-widest mt-2">
-            Drag to reorder chapters or beats
+            Drag <GripVertical size={10} className="inline" /> to reorder chapters or beats
           </p>
         </div>
         <button
@@ -255,6 +259,7 @@ export function StructureEditor({ chapters, onUpdate }: StructureEditorProps) {
         </button>
       </div>
 
+      {/* Chapter list — single column so drag order is unambiguous */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}

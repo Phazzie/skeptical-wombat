@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server';
 import { databasePort } from '../../../../infrastructure/di/container';
 import { handleApiError } from '../../../../infrastructure/utils/apiError';
 import { stackServerApp } from '../../../../stack';
-import { Project } from '../../../../domain/entities/Project';
+import { Project, Chapter, ChatMessage } from '../../../../domain/entities/Project';
 import { ProjectState } from '../../../../domain/entities/ProjectState';
-import { Chapter } from '../../../../domain/entities/Project';
 
 export async function GET(
   _request: Request,
@@ -37,7 +36,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const body = await request.json() as { chapters?: Chapter[] };
+    const body = await request.json() as { chapters?: Chapter[]; chatHistory?: ChatMessage[] };
 
     let project = await databasePort.findById(id);
     if (!project) {
@@ -45,8 +44,11 @@ export async function PUT(
     }
 
     if (body.chapters) {
-      // Use domain method — no direct property mutation from outside the aggregate
       project.setChapters(body.chapters);
+    }
+
+    if (body.chatHistory) {
+      project.setChatHistory(body.chatHistory);
     }
 
     await databasePort.save(project);
