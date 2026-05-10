@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { AnalyzeBullshitUseCase, AnalyzeBullshitCommand } from '../ports/inbound/AnalyzeBullshit';
 import { ChatWithWombatUseCase, ChatWithWombatCommand } from '../ports/inbound/ChatWithWombat';
 import { RecommendStructureUseCase, RecommendStructureCommand } from '../ports/inbound/RecommendStructure';
@@ -24,36 +25,61 @@ export class SkepticEngine
   }
 
   async analyze(command: AnalyzeBullshitCommand): Promise<void> {
+    const { newTranscript } = command;
     const project = await this.findOrCreateProject(command.projectId);
+
+    const transcriptHash = createHash('sha256').update(newTranscript).digest('hex');
+
+    if (project.lastAnalyzedHash === transcriptHash) {
+      return; // Same transcript — skip redundant Grok calls
+    }
 
     if (project.state === ProjectState.DRAFTING) {
       throw new FrictionError('Cannot analyze gaps while in DRAFTING state.');
     }
 
-    const [foundGaps, foundContradictions] = await Promise.all([
-      this.insightPort.findGaps(command.newTranscript, command.context),
-      this.insightPort.findContradictions(command.newTranscript),
-    ]);
+    const analysisText = newTranscript.length > 8000
+      ? newTranscript.slice(-8000)
+      : newTranscript;
 
-    for (const gap of foundGaps) {
-      project.addGap({
-        id: this.idGenerator.generateId(),
-        description: gap.description,
-        isResolved: gap.isResolved,
-      });
-    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 240_000);
+    try {
+      const [foundGaps, foundContradictions] = await Promise.all([
+        this.insightPort.findGaps(analysisText, command.context),
+        this.insightPort.findContradictions(analysisText),
+      ]);
 
-    for (const contradiction of foundContradictions) {
-      project.addContradiction({
-        id: this.idGenerator.generateId(),
-        statementA: contradiction.statementA,
-        statementB: contradiction.statementB,
-        isResolved: contradiction.isResolved,
-      });
-    }
+      for (const gap of foundGaps) {
+        project.addGap({
+          id: this.idGenerator.generateId(),
+          description: gap.description,
+          isResolved: gap.isResolved,
+        });
+      }
 
-    if (project.state !== ProjectState.CONFRONTING) {
-      project.transitionTo(ProjectState.CONFRONTING);
+      for (const contradiction of foundContradictions) {
+        project.addContradiction({
+          id: this.idGenerator.generateId(),
+          statementA: contradiction.statementA,
+          statementB: contradiction.statementB,
+          isResolved: contradiction.isResolved,
+        });
+      }
+
+      if (project.state !== ProjectState.CONFRONTING) {
+        project.transitionTo(ProjectState.CONFRONTING);
+      }
+
+      project.setLastAnalyzedHash(transcriptHash);
+    } catch (err) {
+      clearTimeout(timeout);
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('Analysis timed out — try a shorter transcript or split into sections');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
     }
 
     await this.databasePort.save(project);

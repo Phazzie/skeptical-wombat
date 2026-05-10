@@ -36,7 +36,8 @@ export class NeonDatabaseAdapter implements DatabasePort {
       score: project.score,
       gaps: project.gaps,
       contradictions: project.contradictions,
-      chapters: project.chapters
+      chapters: project.chapters,
+      lastAnalyzedHash: project.lastAnalyzedHash
     };
 
     await sql`
@@ -63,7 +64,8 @@ export class NeonDatabaseAdapter implements DatabasePort {
       row.gaps || [],
       row.contradictions || [],
       row.score || 50,
-      row.chapters || []
+      row.chapters || [],
+      row.lastAnalyzedHash ?? null
     );
   }
 }

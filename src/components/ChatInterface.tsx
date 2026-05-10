@@ -30,9 +30,12 @@ export function ChatInterface({ projectId, context }: ChatInterfaceProps) {
 
     const userMessage: ChatMessage = { role: 'user', content: input };
     const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    setMessages(prev => [...prev, userMessage]);
     setInput('');
     setLoading(true);
+
+    // Optimistically add empty assistant bubble for streaming
+    setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
     try {
       const res = await fetch('/api/chat', {
@@ -40,12 +43,32 @@ export function ChatInterface({ projectId, context }: ChatInterfaceProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, messages: newMessages, context }),
       });
-      const data = await res.json();
-      if (data.reply) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+
+      if (!res.ok) {
+        let errMsg = 'Something went wrong.';
+        try { const d = await res.json(); errMsg = d.error ?? errMsg; } catch {}
+        setMessages(prev => [...prev.slice(0, -1), { role: 'assistant', content: `Error: ${errMsg}` }]);
+        return;
       }
-    } catch (error) {
-      console.error('Chat error:', error);
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          accumulated += decoder.decode(value, { stream: true });
+          setMessages(prev => [...prev.slice(0, -1), { role: 'assistant', content: accumulated }]);
+        }
+      }
+    } catch (err) {
+      console.error('Chat error:', err);
+      setMessages(prev => [
+        ...prev.slice(0, -1),
+        { role: 'assistant', content: 'The Wombat went quiet. Check your connection.' }
+      ]);
     } finally {
       setLoading(false);
     }

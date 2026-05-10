@@ -158,4 +158,25 @@ You're in conversation with the writer about their project: "${context.title}" (
 
     return response.choices[0]?.message?.content ?? "Wombat was speechless. That's a first.";
   }
+
+  async chatStream(
+    messages: ChatMessage[],
+    context: ContextConfig,
+  ): Promise<AsyncIterable<{ choices: Array<{ delta: { content?: string | null } }> }>> {
+    const systemContent = `${WOMBAT_PERSONA}
+
+You're in conversation with the writer about their project: "${context.title}" (${context.format}, section: ${context.part}). Stay in character. Ask follow-up questions. Push back when something doesn't add up. Celebrate the good stuff without being sycophantic.`;
+
+    return this.client.chat.completions.create({
+      model: WOMBAT_MODEL,
+      stream: true,
+      messages: [
+        { role: 'system', content: systemContent },
+        ...messages.map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        })),
+      ],
+    }) as unknown as Promise<AsyncIterable<{ choices: Array<{ delta: { content?: string | null } }> }>>;
+  }
 }

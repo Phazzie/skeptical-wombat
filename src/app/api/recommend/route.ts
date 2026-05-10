@@ -1,24 +1,32 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { skepticEngine } from '../../../infrastructure/di/container';
 import { handleApiError } from '../../../infrastructure/utils/apiError';
 import { stackServerApp } from '../../../stack';
 
 export const maxDuration = 300;
 
+const RecommendSchema = z.object({
+  projectId: z.string().min(1),
+  transcript: z.string().min(1),
+});
+
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     const user = await stackServerApp.getUser({ or: 'throw' });
-    const body = await request.json() as { projectId?: string; transcript?: string };
-    const { projectId, transcript } = body;
-
-    if (!projectId) {
-      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
+    const body = await request.json();
+    const parsed = RecommendSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? 'Invalid request' },
+        { status: 400 }
+      );
     }
+
+    const { projectId, transcript } = parsed.data;
+
     if (projectId !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-    if (!transcript) {
-      return NextResponse.json({ error: 'Transcript is required' }, { status: 400 });
     }
 
     const recommendation = await skepticEngine.recommendStructure({ projectId, transcript });

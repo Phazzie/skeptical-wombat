@@ -16,6 +16,8 @@ export interface Chapter {
 }
 
 export class Project {
+  private _lastAnalyzedHash: string | null = null;
+
   private constructor(
     public readonly id: string,
     public state: ProjectState,
@@ -24,6 +26,14 @@ export class Project {
     private _score: SkepticismScore,
     public chapters: Chapter[]
   ) {}
+
+  get lastAnalyzedHash(): string | null {
+    return this._lastAnalyzedHash;
+  }
+
+  setLastAnalyzedHash(hash: string): void {
+    this._lastAnalyzedHash = hash;
+  }
 
   static create(id: string): Project {
     return new Project(
@@ -42,9 +52,12 @@ export class Project {
     gaps: Gap[],
     contradictions: Contradiction[],
     score: number,
-    chapters: Chapter[]
+    chapters: Chapter[],
+    lastAnalyzedHash?: string | null
   ): Project {
-    return new Project(id, state, gaps, contradictions, SkepticismScore.from(score), chapters);
+    const project = new Project(id, state, gaps, contradictions, SkepticismScore.from(score), chapters);
+    project._lastAnalyzedHash = lastAnalyzedHash ?? null;
+    return project;
   }
 
   public get score(): number {

@@ -1,20 +1,19 @@
 /**
- * GeminiTranscriptionAdapter — implements TranscriptionPort using Gemini 2.5 Flash.
+ * GeminiTranscriptionAdapter — implements TranscriptionPort using Gemini 3 Flash (Preview).
  *
  * Grok's voice API is a real-time WebSocket stream — it cannot accept a
  * recorded audio blob and return a text transcript. Gemini's multimodal File API
  * handles batch transcription cleanly and is the right tool for this use case.
  *
- * Model: gemini-2.5-flash (latest Flash, native audio understanding).
+ * Model: gemini-3-flash-preview (Gemini 3 Flash, released Dec 2025).
  * This adapter is intentionally narrow: it only does transcription. All
  * story analysis (gaps, contradictions, chat, structure) goes through Grok.
+ *
+ * No temp-file writes: the audio Buffer is passed as a Blob directly to
+ * the Gemini File API, eliminating /tmp dependency.
  */
 import { GoogleGenAI } from '@google/genai';
 import { TranscriptionPort } from '../../domain/ports/outbound/TranscriptionPort';
-import { writeFile, unlink } from 'fs/promises';
-import { join } from 'path';
-import { randomUUID } from 'crypto';
-import os from 'os';
 
 export class GeminiTranscriptionAdapter implements TranscriptionPort {
   private readonly ai: GoogleGenAI;
@@ -24,34 +23,26 @@ export class GeminiTranscriptionAdapter implements TranscriptionPort {
   }
 
   async transcribeAudio(audioBuffer: Buffer, mimeType: string): Promise<string> {
-    const extension = mimeType.includes('webm') ? 'webm' : 'audio';
-    const tmpPath = join(os.tmpdir(), `${randomUUID()}-wombat-audio.${extension}`);
+    const blob = new Blob([audioBuffer], { type: mimeType });
 
-    try {
-      await writeFile(tmpPath, audioBuffer);
+    const uploadResult = await this.ai.files.upload({
+      file: blob,
+      config: { mimeType },
+    });
 
-      const uploadResult = await this.ai.files.upload({
-        file: tmpPath,
-        config: { mimeType },
-      });
+    const response = await this.ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: 'Transcribe this audio precisely. Return only the spoken words — no commentary, no formatting, no timestamps.' },
+            { fileData: { fileUri: uploadResult.uri, mimeType: uploadResult.mimeType } },
+          ],
+        },
+      ],
+    });
 
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { text: 'Transcribe this audio precisely. Return only the spoken words — no commentary, no formatting, no timestamps.' },
-              { fileData: { fileUri: uploadResult.uri, mimeType: uploadResult.mimeType } },
-            ],
-          },
-        ],
-      });
-
-      return response.text?.trim() ?? '';
-    } finally {
-      // Always clean up the temp file
-      await unlink(tmpPath).catch(() => undefined);
-    }
+    return response.text?.trim() ?? '';
   }
 }
