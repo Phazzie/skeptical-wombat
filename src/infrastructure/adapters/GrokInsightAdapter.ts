@@ -1,21 +1,18 @@
 /**
- * GrokInsightAdapter — implements InsightPort using xAI's Grok 4.3.
+ * GrokInsightAdapter — implements InsightPort using xAI's Grok.
  *
- * xAI's API is fully OpenAI-compatible. We use the openai SDK with a
- * custom base URL pointing to api.x.ai.
- *
- * Model: grok-4.3 (stable). To use grok-4-1-fast-reasoning if you have
- * access, set XAI_MODEL=grok-4-1-fast-reasoning in your environment.
- *
- * NOTE: Transcription is handled by GeminiTranscriptionAdapter because
- * Grok's voice API is real-time WebSocket only — it cannot accept an
- * audio file and return a text transcript in a single request.
+ * xAI's API is OpenAI-compatible, so we use the openai SDK with a custom
+ * base URL pointing to api.x.ai. Model names are centralized in
+ * src/infrastructure/config/models.ts so docs, adapters, and env examples do
+ * not drift apart.
  */
 import OpenAI from 'openai';
+import { z } from 'zod';
 import { InsightPort, ContextConfig, ChapterRecommendation, ChatMessage } from '../../domain/ports/outbound/InsightPort';
 import { Gap } from '../../domain/entities/Gap';
 import { Contradiction } from '../../domain/entities/Contradiction';
 import { Chapter } from '../../domain/entities/Project';
+import { getXaiModel } from '../config/models';
 
 const WOMBAT_PERSONA = `You are the Skeptical Wombat — sharp, streetwise, and deeply invested in the quality of every story you read. You have the cultural range of someone who grew up in the underground scene and the critical eye of a seasoned editor. You:
 - Call out missing details, emotional dodges, and skipped-over good parts with direct, snappy language
@@ -23,7 +20,49 @@ const WOMBAT_PERSONA = `You are the Skeptical Wombat — sharp, streetwise, and 
 - Have personality. You're not a corporate AI. You're wearing vintage Carhartt, reading theory, and you have opinions.
 - Reward raw honesty with specific praise. Flag mediocrity with specific critique.`;
 
-const WOMBAT_MODEL = process.env.XAI_MODEL ?? 'grok-4.3';
+const GapsResponseSchema = z.object({
+  gaps: z.array(z.object({
+    description: z.string().trim().min(1).max(2_000),
+    isResolved: z.boolean().optional(),
+  })).default([]),
+}).strict();
+
+const ContradictionsResponseSchema = z.object({
+  contradictions: z.array(z.object({
+    statementA: z.string().trim().min(1).max(2_000),
+    statementB: z.string().trim().min(1).max(2_000),
+    isResolved: z.boolean().optional(),
+  })).default([]),
+}).strict();
+
+const StructureResponseSchema = z.object({
+  chapters: z.array(z.object({
+    title: z.string().trim().min(1).max(200),
+    beats: z.array(z.object({
+      content: z.string().trim().min(1).max(4_000),
+    })).max(100),
+  })).default([]),
+}).strict();
+
+function parseJsonObject<T>(content: string | null | undefined, schema: z.ZodSchema<T>, label: string): T {
+  if (!content) {
+    throw new Error(`${label} returned an empty response.`);
+  }
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(content);
+  } catch {
+    throw new Error(`${label} returned invalid JSON.`);
+  }
+
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) {
+    throw new Error(`${label} returned JSON in the wrong shape: ${parsed.error.issues[0]?.message ?? 'invalid response'}`);
+  }
+
+  return parsed.data;
+}
 
 export class GrokInsightAdapter implements InsightPort {
   private readonly client: OpenAI;
@@ -32,6 +71,8 @@ export class GrokInsightAdapter implements InsightPort {
     this.client = new OpenAI({
       apiKey: process.env.XAI_API_KEY,
       baseURL: 'https://api.x.ai/v1',
+      timeout: 240_000,
+      maxRetries: 1,
     });
   }
 
@@ -39,7 +80,7 @@ export class GrokInsightAdapter implements InsightPort {
     const contextBlock = `Format: ${context.format}\nTitle: ${context.title}\nSection: ${context.part}`;
 
     const response = await this.client.chat.completions.create({
-      model: WOMBAT_MODEL,
+      model: getXaiModel(),
       response_format: { type: 'json_object' },
       messages: [
         {
@@ -60,21 +101,21 @@ Focus on: missing psychological subtext, skipped scenes with real stakes, glosse
       ],
     });
 
-    try {
-      const content = response.choices[0]?.message?.content ?? '{"gaps":[]}';
-      const parsed = JSON.parse(content) as { gaps: Array<{ description: string; isResolved: boolean }> };
-      return (parsed.gaps ?? []).map(item => ({
-        description: item.description,
-        isResolved: false,
-      }));
-    } catch {
-      return [];
-    }
+    const parsed = parseJsonObject(
+      response.choices[0]?.message?.content,
+      GapsResponseSchema,
+      'Gap analysis',
+    );
+
+    return parsed.gaps.map(item => ({
+      description: item.description,
+      isResolved: false,
+    }));
   }
 
   async findContradictions(text: string): Promise<Omit<Contradiction, 'id'>[]> {
     const response = await this.client.chat.completions.create({
-      model: WOMBAT_MODEL,
+      model: getXaiModel(),
       response_format: { type: 'json_object' },
       messages: [
         {
@@ -95,22 +136,22 @@ Only flag real contradictions, not just tensions or complications.`,
       ],
     });
 
-    try {
-      const content = response.choices[0]?.message?.content ?? '{"contradictions":[]}';
-      const parsed = JSON.parse(content) as { contradictions: Array<{ statementA: string; statementB: string; isResolved: boolean }> };
-      return (parsed.contradictions ?? []).map(item => ({
-        statementA: item.statementA,
-        statementB: item.statementB,
-        isResolved: false,
-      }));
-    } catch {
-      return [];
-    }
+    const parsed = parseJsonObject(
+      response.choices[0]?.message?.content,
+      ContradictionsResponseSchema,
+      'Contradiction analysis',
+    );
+
+    return parsed.contradictions.map(item => ({
+      statementA: item.statementA,
+      statementB: item.statementB,
+      isResolved: false,
+    }));
   }
 
   async recommendStructure(text: string, currentChapters: Chapter[]): Promise<ChapterRecommendation[]> {
     const response = await this.client.chat.completions.create({
-      model: WOMBAT_MODEL,
+      model: getXaiModel(),
       response_format: { type: 'json_object' },
       messages: [
         {
@@ -131,13 +172,13 @@ Respond with valid JSON in this exact shape:
       ],
     });
 
-    try {
-      const content = response.choices[0]?.message?.content ?? '{"chapters":[]}';
-      const parsed = JSON.parse(content) as { chapters: ChapterRecommendation[] };
-      return parsed.chapters ?? [];
-    } catch {
-      return [];
-    }
+    const parsed = parseJsonObject(
+      response.choices[0]?.message?.content,
+      StructureResponseSchema,
+      'Structure recommendation',
+    );
+
+    return parsed.chapters;
   }
 
   async chat(messages: ChatMessage[], context: ContextConfig): Promise<string> {
@@ -146,7 +187,7 @@ Respond with valid JSON in this exact shape:
 You're in conversation with the writer about their project: "${context.title}" (${context.format}, section: ${context.part}). Stay in character. Ask follow-up questions. Push back when something doesn't add up. Celebrate the good stuff without being sycophantic.`;
 
     const response = await this.client.chat.completions.create({
-      model: WOMBAT_MODEL,
+      model: getXaiModel(),
       messages: [
         { role: 'system', content: systemContent },
         ...messages.map(m => ({
@@ -168,7 +209,7 @@ You're in conversation with the writer about their project: "${context.title}" (
 You're in conversation with the writer about their project: "${context.title}" (${context.format}, section: ${context.part}). Stay in character. Ask follow-up questions. Push back when something doesn't add up. Celebrate the good stuff without being sycophantic.`;
 
     return this.client.chat.completions.create({
-      model: WOMBAT_MODEL,
+      model: getXaiModel(),
       stream: true,
       messages: [
         { role: 'system', content: systemContent },
