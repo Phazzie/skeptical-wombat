@@ -1,14 +1,16 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import './globals.css';
-import { Inter, Anton } from 'next/font/google';
 import { StackProvider, StackTheme } from '@stackframe/stack';
 import { stackServerApp } from '../stack';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
-const anton = Anton({ subsets: ['latin'], weight: '400', variable: '--font-anton' });
+const metadataBase = new URL(
+  process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+);
 
 export const metadata: Metadata = {
+  metadataBase,
   title: {
     default: 'SkepticalWombat — Your Story, Unfiltered',
     template: '%s | SkepticalWombat',
@@ -64,7 +66,7 @@ function RootLoadingFallback() {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${anton.variable}`}>
+    <html lang="en">
       <body suppressHydrationWarning className="antialiased">
         {/*
          * Suspense boundary guards against StackProvider / StackTheme calling

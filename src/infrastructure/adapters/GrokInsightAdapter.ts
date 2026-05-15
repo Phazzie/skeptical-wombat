@@ -30,7 +30,7 @@ export class GrokInsightAdapter implements InsightPort {
 
   constructor() {
     this.client = new OpenAI({
-      apiKey: process.env.XAI_API_KEY,
+      apiKey: process.env.XAI_API_KEY ?? 'build-time-placeholder-xai-key',
       baseURL: 'https://api.x.ai/v1',
     });
   }
