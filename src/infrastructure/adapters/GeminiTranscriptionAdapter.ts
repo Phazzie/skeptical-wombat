@@ -19,11 +19,14 @@ export class GeminiTranscriptionAdapter implements TranscriptionPort {
   private readonly ai: GoogleGenAI;
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    this.ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY ?? 'build-time-placeholder-gemini-key',
+    });
   }
 
   async transcribeAudio(audioBuffer: Buffer, mimeType: string): Promise<string> {
-    const blob = new Blob([audioBuffer], { type: mimeType });
+    const audioBytes = new Uint8Array(audioBuffer);
+    const blob = new Blob([audioBytes], { type: mimeType });
 
     const uploadResult = await this.ai.files.upload({
       file: blob,

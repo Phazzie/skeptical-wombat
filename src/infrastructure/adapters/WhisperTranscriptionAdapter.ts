@@ -21,7 +21,7 @@ export class WhisperTranscriptionAdapter implements TranscriptionPort {
 
   constructor() {
     this.client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: process.env.OPENAI_API_KEY ?? 'build-time-placeholder-openai-key',
     });
   }
 
